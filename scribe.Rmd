@@ -1,13 +1,37 @@
 ---
-title: "CCA scribe"
-author: "Vicky"
+title: "Factor analysis and CCA"
+author: "Wenyue Shi, Carlton Washburn, Qijing Zhang"
 date: "August 11, 2015"
 output: pdf_document
 ---
-# Canonical correlation analysis  
-A method to identify and measure the associations between two sets of variables. Its biggest difference from PCA is that it operates on 2 axes instead of 1.
+#Factor Analysis
+Was developed around 1904 for determining IQ scores. Developed by Spearman. Its biggest difference from PCA is that it corporates error term.
 
-#### Two Examples  
+##Factor Models
+Feature vector:  
+$$ x_i =\begin{pmatrix} x_{i1}\\ x_{i2} \\ \vdots \\ x_{iD}  \end{pmatrix} \in \mathbb{R}^{D}$$
+
+##Model
+
+### Matrix Notation
+$$ x_i = \alpha + Bf_i + \epsilon_i$$
+where $\alpha \in \mathbb{R}^{D}$, $B$ is the Factor Loadings Matrix $(D\times K)$, K << D. $f_i$ is the Factor Scores $\in \mathbb{R}^K$, and $\epsilon_i$ is an error vector $\in \mathbb{R}^D$. i = 1,...,N (N is the number of observations).
+
+### Scalar Notation
+$$ \begin{array}{lcl} x_{ij} & = & \alpha_{j} + B^{T}_{j} f_i =\epsilon_{ij} \\ & = & \alpha_{j} + \Sigma^{k}_{l=1} B_{jl}f_{il} + \epsilon_{ij} \end{array}$$
+Assumptions of Factor Analysis
+$$f_{il} \sim N(0,1), l = 1,\cdots,k$$
+$$\epsilon_{ij} \sim N(0,\sigma^2_j), j = 1,\cdots,D$$
+$\sigma^2_j$ is the idiosyncratic variance for feature $j$.
+
+### Difference between PCA and factor analysis
+In terms of assumption, PCA relies on the geometric assumption that each vector has to be perpendicular to each other. But factor analysis relies on a different set of assumptions enumerated above in 'Scalar Notation' section.  
+Also, since factor analysis has more assumptions than PCA, it generates more outcome as well, the most important of which being predictions. You can get an error bar from factor analysis, which you can't get from PCA.    
+
+# Canonical correlation analysis  
+CCA is a method to identify and measure the associations between two sets of variables. Its biggest difference from PCA is that it operates on 2 axes instead of 1.
+
+### Two Examples  
 1. two types (sets) of measurements on students:
     * Academic: maths, reading, etc
     * Psychological: motivation, self concept, etc
@@ -15,13 +39,13 @@ A method to identify and measure the associations between two sets of variables.
     * Genetic: set of genes
     * Physiological: level of lipid expression
     
-
-#### Notations 
+### Notations
 $X$ = feature matrix 1 $\in\mathbb{R}^{N*D_{1}}$  
 $Y$ = feature matrix 2 $\in\mathbb{R}^{N*D_{2}}$  
 N = # of observations  
 
-#### The Problem  
+### The Problem  
+  
 The first pair of canonical variates  
   $v_{1}\in\mathbb{R}^{D_{1}}$  
   $w_{1}\in\mathbb{R}^{D_{2}}$  
@@ -30,3 +54,221 @@ are defined so that
 is as large as possible
 
 Large negative correlation is just as good (aka indicative) as large positive correlation, because they are the same thing once you flip the direction of the vector.  
+
+# R Markdown files with notes
+
+To see the difference between PCA and Factor Analysis, let's take at a look at the following data set.
+
+This is a exchange rate data set that shows the buying power of USD, with rows being months, and columns being different currencies. So every data indicates how many of that particular currency a dollar would buy for a particular month.
+
+```{r}
+FXmonthly = read.csv('../STA380/data/FXmonthly.csv', header=TRUE)
+summary(FXmonthly)
+```
+
+The plot shows the monthly exchange rate of USD-GBP.
+
+```{r}
+# USD-GBP exchange rate
+plot(FXmonthly$exukus)
+```
+
+We are converting the exchange rate to a day-to-day returns, so that we can get the correlation between these returns.
+
+```{r}
+# Convert everything to returns
+FXmonthly <- (FXmonthly[2:120,]-FXmonthly[1:119,])/(FXmonthly[1:119,]) # proportion change
+```
+
+Some returns of the currencies here are highly correlated, for example Pounds and European Dollars. That makes sense because they are the main currencies used in the world, and people tend to trade between these currencies.
+
+```{r}
+pairs(FXmonthly[,1:5])
+cor(FXmonthly[,c('exeuus','exhkus','excaus','exmxus','exukus')])
+```
+
+Apply PCA to the data set and take a look at the variance explained by the components. 
+
+```{r}
+## PCA 
+fxpca = prcomp(FXmonthly, scale=TRUE)
+
+plot(fxpca)
+mtext(side=1, "Currency Difference Principle Components",  line=1, font=2)
+```
+
+Get the principal component scores. The predict function here works the same as getting scores with the "$x" sign.
+
+```{r}
+# Get the principal component scores
+fx_scores = predict(fxpca)  # same as fxpca$x
+```
+
+Notice there's a huge outliers there when Lehman Brothers collapse and we want to apply CPA without that outlier.
+
+```{r}
+# Color each point so that they get darker over time
+plot(fx_scores[,1:2], pch=21, bg=terrain.colors(120)[120:1], main="Currency PC scores")
+legend("topleft", fill=terrain.colors(3),
+       legend=c("2010","2005","2001"), bty="n", cex=0.75)
+outlier = identify(fx_scores[,1:2], n=1)
+outlier = 92
+```
+
+Now we don't have that extreme outlier.
+
+```{r}
+# Huge outlier (Oct 2008 = month of the Lehman Brothers collapse)
+FXmonthly[outlier,]
+# Re-run without the outlier
+fxpca = prcomp(FXmonthly[-outlier,], scale=TRUE)
+fx_scores = predict(fxpca)  # same as fxpca$x
+
+plot(fxpca)
+
+plot(fx_scores[,1:2], pch=21, bg=terrain.colors(119)[119:1], main="Currency PC scores")
+legend("bottomleft", fill=terrain.colors(3),
+       legend=c("2010","2005","2001"), cex=0.75)
+```
+
+Bar plot the loadings of the first PC.
+
+```{r}
+barplot(fxpca$rotation[,1], las=2)
+```
+
+The bar plot for PC1 gives us a image about a portforlio that most of the countries would buy. And it shouws the U.S.'s overall strength.
+
+```{r}
+barplot(fxpca$rotation[,2], las=2)  # fluctuation in trade
+```
+
+However the plot for PC2 shows more fluctuation in trading, with the positive ones indicating that the U.S. sells the currency and negative ones indicating that the U.S. purchases the currency. 
+
+The following table indicates the name of the country in terms of their code.
+
+```{r}
+currency_codes = read.table('../STA380/data/currency_codes.txt')
+currency_codes
+```
+
+### Factor Analysis
+
+```{r}
+# Compare with factor analysis
+Y = scale(FXmonthly[-outlier,], center=TRUE, scale=FALSE)
+fa_fx = factanal(Y, 3, scores='regression')
+# 3 means you need 3 factors
+print(fa_fx)
+```
+
+Take a look at the loadings on the factors. Factor analysis here give us a little bit more information than PCA, as it tells us which currencies are least related with the factor. The higher the bar, the less they are related to this factor.
+
+```{r}
+barplot(fa_fx$loadings[,1], las=2, cex.names=0.8)
+# which of the currencies are least related to the factors
+# higher the bar, the less related to the factors, and this are the uniqueness
+barplot(fa_fx$loadings[,2], las=2, cex.names=0.8)
+barplot(fa_fx$loadings[,3], las=2, cex.names=0.8)
+```
+
+One thing we have with Factor Analysis but not with PCA is the information about the error. Here we can see the variances of the idiosyncratic noise terms, also known as uniquenesses or error bar.
+
+```{r}
+# The variances of the idiosyncratic noise terms
+barplot(fa_fx$uniquenesses, las=2, cex.names=0.8)
+
+# Scatter plot of first two factor scores
+plot(fa_fx$scores[,1:2], pch=21,
+     bg=terrain.colors(119)[119:1],
+     main="Currency factor scores")
+legend("bottomright", fill=terrain.colors(3),
+       legend=c("2010","2005","2001"), cex=0.6)
+```
+As we know, Cananical Correlation Analysis is used to see the correlation between two distinguished data sets. Let's take a look at the following example.
+
+```{r}
+# Canonical correlation analysis
+mmreg = read.csv('../STA380/data/mmreg.csv')
+head(mmreg)
+```
+
+Split the data set to two seperate data sets, X and Y.
+
+```{r}
+# Focus on two sets of variables
+X = scale(mmreg[,c(1,2)], center=TRUE, scale=TRUE)
+# x is for sychological variables and Y is for test scores
+Y = scale(mmreg[,c(4,6)], center=TRUE, scale=TRUE)
+par(mfrow=c(1,2))
+plot(X)
+plot(Y)
+```
+
+We can see that there isn't much correlation within X, but a stronger correlation within Y.
+
+Let's try some random vectors to X and Y.
+
+```{r}
+# Let's try some random canonical vectors
+set.seed(2)
+v_x = rnorm(2); v_x = v_x / sqrt(sum(v_x^2))
+slope_x = v_x[2]/v_x[1]
+
+v_y = rnorm(2); v_y = v_y / sqrt(sum(v_y^2))
+slope_y = v_y[2]/v_y[1]
+
+par(mfrow=c(1,2))
+
+plot(X, pch=19, cex=0.6, col=rgb(0,0,0,0.2))
+abline(0, slope_x)
+segments(0, 0, v_x[1], v_x[2], col='red', lwd=4)
+
+plot(Y, pch=19, cex=0.6, col=rgb(0,0,0,0.2))
+abline(0, slope_y)
+segments(0, 0, v_y[1], v_y[2], col='red', lwd=4)
+```
+
+Plot the positions of the projected points, and then plot the positions of the twe subsets and see the correlation.
+
+```{r}
+# Now look at the projected points
+par(mfrow=c(1,3))
+
+# Random canonical vectors
+v_x = rnorm(2); v_x = v_x / sqrt(sum(v_x^2))
+slope_x = v_x[2]/v_x[1]
+
+v_y = rnorm(2); v_y = v_y / sqrt(sum(v_y^2))
+slope_y = v_y[2]/v_y[1]
+
+plot(X, pch=19, cex=0.6, col=rgb(0,0,0,0.2))
+a_x = X %*% v_x
+points(a_x %*% v_x, pch=4, col='blue')
+abline(0, slope_x)
+segments(0, 0, v_x[1], v_x[2], col='red', lwd=4)
+
+plot(Y, pch=19, cex=0.6, col=rgb(0,0,0,0.2))
+a_y = Y %*% v_y
+points(a_y %*% v_y, pch=4, col='blue')
+abline(0, slope_y)
+segments(0, 0, v_y[1], v_y[2], col='red', lwd=4)
+plot(a_x, a_y, main=round(cor(a_x, a_y), 2))
+```
+
+A strongly negative correlation is as good as a strongly positive correlation.
+
+```{r}
+# Run CCA
+cc1 = cancor(X, Y)
+# xcoef is v
+cc1$xcoef
+# ycoef is w
+cc1$ycoef
+cc1$cor
+```
+
+CCA is designed to use X to predict Y while you want to reduce the features in both X and Y, as you are trying to retain the correlation between the two data sets while preserving the distinction of each of the data sets.
+
+
+
