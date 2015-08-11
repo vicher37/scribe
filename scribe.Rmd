@@ -5,7 +5,7 @@ date: "August 11, 2015"
 output: pdf_document
 ---
 #Factor Analysis
-Was developed around 1904 for determining IQ scores. Developed by Spearman. Its biggest difference from PCA is that it corporates error term.
+Was developed around 1904 for determining IQ scores. Developed by Spearman. Its biggest difference from PCA is that it incorporates error term.
 
 ##Factor Models
 Feature vector:  
